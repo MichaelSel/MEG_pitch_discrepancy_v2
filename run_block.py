@@ -6,7 +6,9 @@ import pandas as pd
 from port_open_send import sendTrigger
 
 '''Set Task set'''
-task_set = "MEG2p2014"
+task_set = "MEGv2_0001"
+
+
 
 
 # TODO: add if already in data folder, throw error
@@ -29,6 +31,10 @@ task_audio_dir = task_set_path + "/audio"
 experiment_start = core.getTime()
 screen = 0 # which screen/monitor to use
 win = None # will store window object
+
+fixation_height = 2
+fixation_char = "+"
+
 '''Track EVENTS: i.e., all data stored here'''
 all_events = []
 
@@ -53,7 +59,7 @@ def run_block(block_num, show_instrctions_on_1 = True):
     if block_num == 1 and show_instrctions_on_1:
         show_message("Hello and welcome to the study.\nPress any key on your keyboard to continue.")
 
-    show_message("In every trial you will listen to two melodies in a row:\"Melody 1\", followed by \"Melody 2\".\n"
+    show_message("In every trial you will listen to two melodies in a row: \"Melody 1\", followed by \"Melody 2\".\n"
                  "The two melodies are very similar but never identical. \n"
                  "Your task is to indicate how clearly you heard the difference between the two melodies.\n" +
                  "Press any key on your keyboard to continue.")
@@ -112,14 +118,15 @@ def choice_screen(keys=None,trigger_port=None):
     option4 = "[4] Very clearly"
 
     msg = visual.TextStim(win, text=msg)
-    option1 = visual.TextStim(win, text=option1)
-    option1.pos = (-0.5, -0.5)
-    option2 = visual.TextStim(win, text=option2)
-    option2.pos = (-0.25, -0.5)
-    option3 = visual.TextStim(win, text=option3)
-    option3.pos = (0.25, -0.5)
-    option4 = visual.TextStim(win, text=option4)
-    option4.pos = (0.5, -0.5)
+    msg.pos = (0, 0.5)
+    option1 = visual.TextStim(win, alignHoriz='left', text=option1)
+    option1.pos = (-0.35, -0.3)
+    option2 = visual.TextStim(win, alignHoriz='left', text=option2)
+    option2.pos = (-0.35, -0.41)
+    option3 = visual.TextStim(win, alignHoriz='left', text=option3)
+    option3.pos = (-0.35, -0.52)
+    option4 = visual.TextStim(win, alignHoriz='left', text=option4)
+    option4.pos = (-0.35, -0.63)
     msg.draw()
     option1.draw()
     option2.draw()
@@ -149,16 +156,21 @@ def timed_message(msg="",time=1):
     core.wait(time)
 
 
-def show_ITI(time=default_ITI,msg=""):
+def show_ITI(time=default_ITI,msg="",text_params=None):
     all_events.append(
         {'what': "ITI", 'when': core.getTime() - experiment_start, 'content': time, 'response': None})
+    if (text_params):
+        text_params['text'] = msg
+        ITI = visual.TextStim(win, **text_params)
+    else:
+        ITI = visual.TextStim(win, text=msg)
     ITI = visual.TextStim(win, text=msg)
     ITI.draw()
     win.flip()
     core.wait(time)
 
 
-def play_file(path,msg,trigger_port,trigger_twice=False):
+def play_file(path,msg,trigger_port,trigger_twice=False, text_params=None):
     all_events.append(
         {'what': "audio played", 'when': core.getTime() - experiment_start, 'content': path, 'message':msg, 'response': None})
     mySound = Sound(path)
@@ -168,7 +180,11 @@ def play_file(path,msg,trigger_port,trigger_twice=False):
     #    sendTrigger(trigger_port, duration=0.01)
     mySound.play()
     core.wait(mySound.getDuration())
-    msg = visual.TextStim(win, text=msg)
+    if(text_params):
+        text_params['text']=msg
+        msg = visual.TextStim(win, **text_params)
+    else:
+        msg = visual.TextStim(win, text=msg)
     msg.draw()
     win.flip()
 
@@ -184,11 +200,11 @@ def start_experiment(size=None):
 def choice_trial(entry, num_of_Qs = 25):
 
     show_message("Block {}, Question {} of {}\nPress any key to start the trial.".format(entry['block_num'],entry['num_in_block'],num_of_Qs))
-    show_ITI()
-    play_file("{}/{}".format(task_audio_dir,entry['probe_file']),"",trigger_port=f'ch160',trigger_twice=False)
-    show_ITI(time=0.75,msg="")
-    play_file("{}/{}".format(task_audio_dir, entry['test_file']), "", trigger_port=f'ch161', trigger_twice=False)
-    show_ITI(time=0.75, msg="")
+    show_ITI(time=0.75,msg=fixation_char,text_params={'height':fixation_height})
+    play_file("{}/{}".format(task_audio_dir,entry['probe_file']),fixation_char,trigger_port=f'ch160',trigger_twice=False,text_params={'height':fixation_height})
+    show_ITI(time=1,msg=fixation_char,text_params={'height':fixation_height})
+    play_file("{}/{}".format(task_audio_dir, entry['test_file']), fixation_char, trigger_port=f'ch161', trigger_twice=False,text_params={'height':fixation_height})
+    show_ITI(time=0.75, msg=fixation_char,text_params={'height':fixation_height})
     choice = choice_screen(choice_mapping.keys(),trigger_port=f'ch165')
     sendTrigger(f'ch166') #trigger when subject responsed
     choice = choice[0]
@@ -233,6 +249,6 @@ def save_event_data(filename):
     data['time_since_last_event'] =  data['when'] - data['when'].shift(1)
     data.to_json(task_set_csv_dir + "/" + filename,orient='records')
 
-win = start_experiment() # [800, 800]
+win = start_experiment([1200,800]) # [800, 800]
 
-run_block(10) #uncomment to run the block
+run_block(1) #uncomment to run the block
